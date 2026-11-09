@@ -1,248 +1,143 @@
+/*
+ * Copyright 2023 Adobe. All rights reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import {
+  sampleRUM,
   loadHeader,
   loadFooter,
+  decorateButtons,
   decorateIcons,
   decorateSections,
   decorateBlocks,
   decorateTemplateAndTheme,
-  waitForFirstImage,
-  loadSection,
-  loadSections,
+  waitForLCP,
+  loadBlocks,
   loadCSS,
-  buildBlock,
 } from './aem.js';
 
-if (window.trustedTypes && window.trustedTypes.createPolicy) {
-  const innerTT = window.trustedTypes.createPolicy('tt-inner', {
-    createHTML: (s) => s, // avoid stack overflow
-  });
-
-  window.trustedTypes.createPolicy('default', {
-    createHTML: (input, type, sink) => {
-      let processedInput = input;
-      if (/srcdoc\s*=/i.test(processedInput)) {
-        const doc = new DOMParser().parseFromString(innerTT.createHTML(processedInput), 'text/html');
-        doc.querySelectorAll('iframe[srcdoc]').forEach((el) => el.removeAttribute('srcdoc'));
-        processedInput = doc.body.innerHTML;
-      }
-      if (sink.includes('createContextualFragment') || sink.includes('Document write')) {
-        const doc = new DOMParser().parseFromString(innerTT.createHTML(processedInput), 'text/html');
-        doc.querySelectorAll('script').forEach((el) => el.remove());
-        processedInput = doc.body.innerHTML;
-      }
-      return processedInput;
-    },
-    createScriptURL: (input) => input,
-    createScript: (input) => input,
-  });
-}
+/**
+ * Initialize global data layer structure
+ */
+window.digitalData = window.digitalData || {
+  user: {
+    bankCustId: localStorage.getItem('bankCustId') || '',
+  },
+};
 
 /**
- * load fonts.css and set a session storage flag
+ * Sets up live input listener to capture BankCustID dynamically
  */
-async function loadFonts() {
-  await loadCSS(`${window.hlx.codeBasePath}/styles/fonts.css`);
-  try {
-    if (!window.location.hostname.includes('localhost')) sessionStorage.setItem('fonts-loaded', 'true');
-  } catch (e) {
-    // do nothing
-  }
-}
-
-/**
- * Turns `/widgets/...` links into widget blocks.
- * @param {Element} main The container element
- */
-function buildWidgetAutoBlocks(main) {
-  const widgetLinks = [...main.querySelectorAll('a[href*="/widgets/"]')];
-  widgetLinks.forEach((link) => {
-    if (link.closest('.widget')) return;
-    const newLink = link.cloneNode(true);
-    const widgetBlock = buildBlock('widget', { elems: [newLink] });
-    const p = link.closest('p');
-    if (
-      p
-      && p.querySelectorAll('a').length === 1
-      && p.querySelector('a') === link
-      && p.textContent.trim() === link.textContent.trim()
-    ) {
-      p.replaceWith(widgetBlock);
-    } else {
-      link.replaceWith(widgetBlock);
+function setupCustomerTracking() {
+  document.addEventListener('input', (event) => {
+    // Target your customer ID input field (adjust selector if needed, e.g., input[name="bankCustId"])
+    if (event.target && (event.target.id === 'bankCustId' || event.target.name === 'bankCustId' || event.target.classList.contains('bank-cust-id'))) {
+      const val = event.target.value;
+      window.digitalData.user.bankCustId = val;
+      localStorage.setItem('bankCustId', val);
     }
   });
 }
 
 /**
- * Builds all synthetic blocks in a container element.
+ * Loads Adobe Experience Platform Web SDK Tags library
+ */
+function loadAdobeTags() {
+  const script = document.createElement('script');
+  script.src = 'https://assets.adobedtm.com/08c6c96e8270/50d004a48c15/launch-9b7eeff9d20b-development.min.js';
+  script.async = true;
+  document.head.appendChild(script);
+}
+
+/**
+ * Builds all synthetic blocks.
  * @param {Element} main The container element
  */
 function buildAutoBlocks(main) {
   try {
-    // auto load `*/fragments/*` references
-    const fragments = [...main.querySelectorAll('a[href*="/fragments/"]')].filter((f) => !f.closest('.fragment'));
-    if (fragments.length > 0) {
-      // eslint-disable-next-line import/no-cycle
-      import('../blocks/fragment/fragment.js').then(({ loadFragment }) => {
-        fragments.forEach(async (fragment) => {
-          try {
-            const { pathname } = new URL(fragment.href);
-            const frag = await loadFragment(pathname);
-            fragment.parentElement.replaceWith(...frag.children);
-          } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error('Fragment loading failed', error);
-          }
-        });
-      });
-    }
-    buildWidgetAutoBlocks(main);
+    // Add auto-block logic here if needed
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('Auto Blocking failed', error);
   }
-}
-
-/**
- * Decorates formatted links to style them as buttons.
- * @param {HTMLElement} main The main container element
- */
-function decorateButtons(main) {
-  main.querySelectorAll('p a[href]').forEach((a) => {
-    a.title = a.title || a.textContent;
-    const p = a.closest('p');
-    const text = a.textContent.trim();
-
-    // quick structural checks
-    if (a.querySelector('img') || p.textContent.trim() !== text) return;
-
-    // skip URL display links
-    try {
-      if (new URL(a.href).href === new URL(text, window.location).href) return;
-    } catch { /* continue */ }
-
-    // require authored formatting for buttonization
-    const strong = a.closest('strong');
-    const em = a.closest('em');
-    if (!strong && !em) return;
-
-    p.className = 'button-wrapper';
-    a.className = 'button';
-    if (strong && em) { // high-impact call-to-action
-      a.classList.add('accent');
-      const outer = strong.contains(em) ? strong : em;
-      outer.replaceWith(a);
-    } else if (strong) {
-      a.classList.add('primary');
-      strong.replaceWith(a);
-    } else {
-      a.classList.add('secondary');
-      em.replaceWith(a);
-    }
-  });
 }
 
 /**
  * Decorates the main element.
  * @param {Element} main The main element
  */
-// eslint-disable-next-line import/prefer-default-export
 export function decorateMain(main) {
+  // Build and decorate auxiliary elements/blocks
+  decorateButtons(main);
   decorateIcons(main);
   buildAutoBlocks(main);
   decorateSections(main);
   decorateBlocks(main);
-  decorateButtons(main);
-}
-
-/**
- * Initialize Data Layer and bind live input tracking for Customer ID
- */
-function initDataLayer() {
-  window.digitalData = window.digitalData || {};
-  window.digitalData.user = window.digitalData.user || {};
-  
-  // Initial fallback or loaded from storage
-  window.digitalData.user.bankCustId = localStorage.getItem('bankCustId') || '';
-
-  // Listen to user inputs anywhere on the page to dynamically capture ID updates (e.g. typing CUST9801)
-  document.addEventListener('input', (e) => {
-    if (e.target.tagName === 'INPUT') {
-      const val = e.target.value.trim();
-      if (val) {
-        window.digitalData.user.bankCustId = val;
-        localStorage.setItem('bankCustId', val);
-      }
-    }
-  });
 }
 
 /**
  * Loads everything needed to get to LCP.
  * @param {Element} doc The container element
  */
-async function loadEager(doc) {
+ async function loadEager(doc) {
   document.documentElement.lang = 'en';
-
-  // --- Initialize Data Layer & Dynamic Tracking ---
-  initDataLayer();
-  // ------------------------------------------------
-
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
   if (main) {
     decorateMain(main);
     document.body.classList.add('appear');
-    await loadSection(main.querySelector('.section'), waitForFirstImage);
+    await waitForLCP(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
   }
 
   try {
-    /* if desktop (proxy for fast connection) or fonts already loaded, load fonts.css */
-    if (window.innerWidth >= 900 || sessionStorage.getItem('fonts-loaded')) {
-      loadFonts();
-    }
+    // Initialize customer ID capture listener early
+    setupCustomerTracking();
   } catch (e) {
-    // do nothing
+    console.error('Customer tracking setup failed', e);
   }
 }
 
 /**
- * Loads everything that doesn't need to be delayed.
+ * Loads everything that doesn't need to be in the immediate view.
  * @param {Element} doc The container element
  */
 async function loadLazy(doc) {
-  loadHeader(doc.querySelector('body > header'));
-
   const main = doc.querySelector('main');
-  await loadSections(main);
+  await loadBlocks(main);
 
   const { hash } = window.location;
   const element = hash ? doc.getElementById(hash.substring(1)) : false;
   if (hash && element) element.scrollIntoView();
 
-  loadFooter(doc.querySelector('body > footer'));
+  loadHeader(doc.querySelector('header'));
+  loadFooter(doc.querySelector('footer'));
 
   loadCSS(`${window.hlx.codeBasePath}/styles/lazy-styles.css`);
-  loadFonts();
+  sampleRUM('lazy');
+  sampleRUM.observe(main.querySelectorAll('div[data-block-name]'));
+  sampleRUM.observe(main.querySelectorAll('picture > img'));
+
+  // Load Adobe Tags / Web SDK asynchronously during lazy phase
+  loadAdobeTags();
 }
 
 /**
  * Loads everything that happens a lot later,
- * without impacting the user experience.
+ * without impacting performance.
  */
 function loadDelayed() {
-  import('./consent-check.js');
-  // load anything that can be postponed to the latest here
-}
-/**
- * Loads delayed phase assets (Analytics, Tags, etc.)
- */
-async function loadDelayed() {
-  // Load Adobe Tags / Web SDK
-  const script = document.createElement('script');
-  script.src = 'https://assets.adobedtm.com/08c6c96e8270/50d004a48c15/launch-9b7eeff9d20b-development.min.js';
-  script.async = true;
-  document.head.appendChild(script);
+  // eslint-disable-next-line import/no-cycle
+  window.setTimeout(() => import('./delayed.js'), 3000);
+  // User custom delayed logic can go here
 }
 
 async function loadPage() {
