@@ -161,6 +161,13 @@ export function decorateMain(main) {
  */
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+
+  // --- Initialize Data Layer for AEP Web SDK Tracking ---
+  window.digitalData = window.digitalData || {};
+  window.digitalData.user = window.digitalData.user || {};
+  window.digitalData.user.bankCustId = localStorage.getItem('bankCustId') || 'CUST_994821';
+  // -----------------------------------------------------
+
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
   if (main) {
