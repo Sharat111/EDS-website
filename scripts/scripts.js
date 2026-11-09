@@ -234,6 +234,16 @@ function loadDelayed() {
   import('./consent-check.js');
   // load anything that can be postponed to the latest here
 }
+/**
+ * Loads delayed phase assets (Analytics, Tags, etc.)
+ */
+async function loadDelayed() {
+  // Load Adobe Tags / Web SDK
+  const script = document.createElement('script');
+  script.src = 'https://assets.adobedtm.com/08c6c96e8270/50d004a48c15/launch-9b7eeff9d20b-development.min.js';
+  script.async = true;
+  document.head.appendChild(script);
+}
 
 async function loadPage() {
   await loadEager(document);
