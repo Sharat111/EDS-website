@@ -156,14 +156,25 @@ export function decorateMain(main) {
 }
 
 /**
- * Dynamically retrieves the Customer ID from the page input or storage
+ * Initialize Data Layer and bind live input tracking for Customer ID
  */
-function getCustomerld() {
-  const inputField = document.querySelector('input[name="consumerId"], input[id*="consumer"], input[id*="cust"], input[type="text"]');
-  if (inputField && inputField.value) {
-    return inputField.value.trim();
-  }
-  return localStorage.getItem('bankCustId') || '';
+function initDataLayer() {
+  window.digitalData = window.digitalData || {};
+  window.digitalData.user = window.digitalData.user || {};
+  
+  // Initial fallback or loaded from storage
+  window.digitalData.user.bankCustId = localStorage.getItem('bankCustId') || '';
+
+  // Listen to user inputs anywhere on the page to dynamically capture ID updates (e.g. typing CUST9801)
+  document.addEventListener('input', (e) => {
+    if (e.target.tagName === 'INPUT') {
+      const val = e.target.value.trim();
+      if (val) {
+        window.digitalData.user.bankCustId = val;
+        localStorage.setItem('bankCustId', val);
+      }
+    }
+  });
 }
 
 /**
@@ -173,17 +184,9 @@ function getCustomerld() {
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
 
-  // --- Dynamic Data Layer Initialization ---
-  window.digitalData = window.digitalData || {};
-  window.digitalData.user = window.digitalData.user || {};
-  
-  Object.defineProperty(window.digitalData.user, 'bankCustId', {
-    get() {
-      return getCustomerld();
-    },
-    configurable: true,
-  });
-  // ----------------------------------------
+  // --- Initialize Data Layer & Dynamic Tracking ---
+  initDataLayer();
+  // ------------------------------------------------
 
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
