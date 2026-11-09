@@ -156,17 +156,34 @@ export function decorateMain(main) {
 }
 
 /**
+ * Dynamically retrieves the Customer ID from the page input or storage
+ */
+function getCustomerld() {
+  const inputField = document.querySelector('input[name="consumerId"], input[id*="consumer"], input[id*="cust"], input[type="text"]');
+  if (inputField && inputField.value) {
+    return inputField.value.trim();
+  }
+  return localStorage.getItem('bankCustId') || '';
+}
+
+/**
  * Loads everything needed to get to LCP.
  * @param {Element} doc The container element
  */
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
 
-  // --- Initialize Data Layer for AEP Web SDK Tracking ---
+  // --- Dynamic Data Layer Initialization ---
   window.digitalData = window.digitalData || {};
   window.digitalData.user = window.digitalData.user || {};
-  window.digitalData.user.bankCustId = localStorage.getItem('bankCustId') || 'CUST_994821';
-  // -----------------------------------------------------
+  
+  Object.defineProperty(window.digitalData.user, 'bankCustId', {
+    get() {
+      return getCustomerld();
+    },
+    configurable: true,
+  });
+  // ----------------------------------------
 
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
