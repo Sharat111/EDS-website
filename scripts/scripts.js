@@ -16,8 +16,6 @@ import {
   sampleRUM,
   loadHeader,
   loadFooter,
-  decorateButtons,
-  decorateIcons,
   decorateSections,
   decorateBlocks,
   decorateTemplateAndTheme,
@@ -41,9 +39,6 @@ function buildHeroBlock(main) {
  * @param {Element} main The container element
  */
 function decorateMain(main) {
-  // hopefully forward compatible decorations
-  decorateButtons(main);
-  decorateIcons(main);
   buildHeroBlock(main);
   decorateSections(main);
   decorateBlocks(main);
@@ -101,7 +96,6 @@ async function loadLazy(doc) {
  * without impacting the user experience.
  */
 function loadDelayed() {
-  // load anything that can be postponed to the latest here
   window.setTimeout(() => {
     import('./consent-check.js');
   }, 3000);
