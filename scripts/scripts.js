@@ -16,32 +16,20 @@ import {
   sampleRUM,
   loadHeader,
   loadFooter,
-  decorateSections,
-  decorateBlocks,
+  decorateArea,
   decorateTemplateAndTheme,
   waitForLCP,
-  loadBlocks,
   loadCSS,
 } from './aem.js';
 
-const LCP_BLOCKS = []; // add your LCP blocks to the list
-
-/**
- * Build synthetic hero block.
- * @param {Element} main The container element
- */
-function buildHeroBlock(main) {
-  // Add hero building logic if needed
-}
+const LCP_BLOCKS = []; 
 
 /**
  * load all headings and text decoration
  * @param {Element} main The container element
  */
 function decorateMain(main) {
-  buildHeroBlock(main);
-  decorateSections(main);
-  decorateBlocks(main);
+  decorateArea(main);
 }
 
 /**
@@ -59,7 +47,6 @@ async function loadEager(doc) {
   }
 
   try {
-    /* desktop header autochina */
     const windowWidth = window.innerWidth;
     if (windowWidth >= 900) {
       import('./header.js');
@@ -75,7 +62,6 @@ async function loadEager(doc) {
  */
 async function loadLazy(doc) {
   const main = doc.querySelector('main');
-  await loadBlocks(main);
 
   const loader = doc.querySelector('header');
   if (loader) loadHeader(loader);
@@ -105,10 +91,8 @@ function loadDelayed() {
 // ADOBE CLIENT DATA LAYER (ACDL) & WEB SDK
 // ==========================================
 
-// 1. Initialize ACDL array globally before loading Tags
 window.adobeDataLayer = window.adobeDataLayer || [];
 
-// Populate initial state from localStorage if a saved ID exists
 const savedCustId = localStorage.getItem('bankCustId');
 if (savedCustId) {
   window.adobeDataLayer.push({
@@ -118,14 +102,11 @@ if (savedCustId) {
   });
 }
 
-// 2. Add Event Listener to track dynamic inputs and push into ACDL
 document.addEventListener('input', (e) => {
   if (e.target.tagName === 'INPUT') {
     const val = e.target.value.trim();
     if (val) {
       localStorage.setItem('bankCustId', val);
-      
-      // Push state update + custom event to ACDL
       window.adobeDataLayer.push({
         event: 'userIdentifierUpdated',
         user: {
@@ -148,7 +129,6 @@ async function loadPage() {
 
 loadPage();
 
-// 3. Direct asynchronous script injection for Adobe Tags (Development environment)
 const adobeScript = document.createElement('script');
 adobeScript.src = 'https://assets.adobedtm.com/08c6c96e8270/50d004a48c15/launch-9b7eeff9d20b-development.min.js';
 adobeScript.async = true;
