@@ -277,55 +277,6 @@ document.addEventListener('input', (e) => {
   }
 });
 
-// ==========================================
-// EXISTING EXECUTION & TAGS INJECTION (Keep this!)
-// ==========================================
-loadPage();
-
-const adobeScript = document.createElement('script');
-adobeScript.src = 'https://assets.adobedtm.com/08c6c96e8270/50d004a48c15/launch-9b7eeff9d20b-development.min.js';
-adobeScript.async = true;
-document.head.appendChild(adobeScript);
-
-// ==========================================
-// ADOBE CLIENT DATA LAYER (ACDL) SETUP
-// ==========================================
-window.adobeDataLayer = window.adobeDataLayer || [];
-
-const savedCustId = localStorage.getItem('bankCustId');
-if (savedCustId) {
-  window.adobeDataLayer.push({
-    user: {
-      bankCustId: savedCustId
-    }
-  });
-}
-
-document.addEventListener('input', (e) => {
-  if (e.target.tagName === 'INPUT') {
-    const val = e.target.value.trim();
-    if (val) {
-      localStorage.setItem('bankCustId', val);
-      window.adobeDataLayer.push({
-        event: 'userIdentifierUpdated',
-        user: {
-          bankCustId: val
-        }
-      });
-    }
-  }
-});
-
-// ==========================================
-// EXISTING EXECUTION & TAGS INJECTION (Keep this!)
-// ==========================================
-loadPage();
-
-const adobeScript = document.createElement('script');
-adobeScript.src = 'https://assets.adobedtm.com/08c6c96e8270/50d004a48c15/launch-9b7eeff9d20b-development.min.js';
-adobeScript.async = true;
-document.head.appendChild(adobeScript);
-
 
 
 
