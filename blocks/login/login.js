@@ -13,7 +13,12 @@ async function showWelcomeMessage(customerId) {
   const message = prop?.items?.[0]?.data?.content?.message;
 
   if (message) {
-    document.querySelector('#navbarSupportedContent')?.prepend(message);
+    // Render it right inside your login message container
+    const messageDiv = document.querySelector('#login-message');
+    if (messageDiv) {
+      messageDiv.className = 'login-message success';
+      messageDiv.textContent = message; // Will display "Hello Ram from CBE"
+    }
   }
 }
 
